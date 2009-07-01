@@ -18,33 +18,37 @@ def parse_args ():
 def from_iso (date):
     return datetime.strptime(str(date), '%Y%m%dT%H%M%S')
 
+def mv_attr (attr):
+    if isinstance(attr, str):
+        val = [ attr ]
+    else:
+        val = attr
+
+    return val
+
 def print_vevent (event):
 
     event_start = from_iso(event['dtstart'])
     event_end = from_iso(event['dtend'])
     
-    organizer = event['organizer']
-    if organizer.startswith('MAILTO:'):
-        organizer = organizer[7:]
+    organizers = mv_attr(event.get('organizer', []))
+    for i, organizer in enumerate(organizers):
+        if organizer.startswith('MAILTO'):
+            organizers[i] = organizer[7:]
 
-    if hasattr(event['attendee'], 'startswith'):
-        attendees = [ event['attendee'] ]
-    else:
-        attendees = event['attendee']
-
+    attendees = mv_attr(event.get('attendee', []))
     for i, attendee in enumerate(attendees):
-        if attendee.startswith('MAILTO:'):
+        if attendee.startswith('MAILTO'):
             attendees[i] = attendee[7:]
-
 
     print '='*70
     print event['summary']
     print '='*70
     print
 
-    print 'WHEN: %s - %s' % (event_start, event_end)
-    print 'ORGANIZER:', organizer
-    print 'ATTENDING:', '\n           '.join(attendees)
+    print '      WHEN: %s - %s' % (event_start, event_end)
+    print 'ORGANIZERS:', '\n           '.join(organizers)
+    print ' ATTENDING:', '\n           '.join(attendees)
 
     print
 
