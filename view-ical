@@ -11,11 +11,16 @@ opts = None
 
 def parse_args ():
     p = optparse.OptionParser()
-    p.add_option('--wait', action='store_true')
+    p.add_option('-w', '--wait', action='store_true')
+    p.add_option('-d', '--debug', action='store_true')
 
     return p.parse_args()
 
 def from_iso (date):
+    # XXX: This is a hack to deal with ISO format dates with a terminal
+    # 'Z', which aren't handled by the datetime module.
+    if str(date).endswith('Z'):
+        date = str(date)[:-1]
     return datetime.strptime(str(date), '%Y%m%dT%H%M%S')
 
 def mv_attr (attr):
@@ -33,12 +38,12 @@ def print_vevent (event):
     
     organizers = mv_attr(event.get('organizer', []))
     for i, organizer in enumerate(organizers):
-        if organizer.startswith('MAILTO'):
+        if organizer.lower().startswith('mailto'):
             organizers[i] = organizer[7:]
 
     attendees = mv_attr(event.get('attendee', []))
     for i, attendee in enumerate(attendees):
-        if attendee.startswith('MAILTO'):
+        if attendee.lower().startswith('mailto'):
             attendees[i] = attendee[7:]
 
     print '='*70
@@ -74,7 +79,10 @@ def main ():
         opts, args = parse_args()
         parse_ics()
     except Exception, detail:
-        print 'Failed to parse:', detail
+        if opts.debug:
+            raise
+        else:
+            print 'Failed to parse:', detail
 
 if __name__ == '__main__':
     main()
