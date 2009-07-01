@@ -1,0 +1,5 @@
+Add the following entry to your .mailcap file:
+
+  text/calendar; view-ical ; copiousoutput
+
+
