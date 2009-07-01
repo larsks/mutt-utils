@@ -1,0 +1,77 @@
+#!/usr/bin/python
+
+import os
+import sys
+import optparse
+import icalendar
+
+from datetime import datetime
+
+opts = None
+
+def parse_args ():
+    p = optparse.OptionParser()
+    p.add_option('--wait', action='store_true')
+
+    return p.parse_args()
+
+def from_iso (date):
+    return datetime.strptime(str(date), '%Y%m%dT%H%M%S')
+
+def print_vevent (event):
+
+    event_start = from_iso(event['dtstart'])
+    event_end = from_iso(event['dtend'])
+    
+    organizer = event['organizer']
+    if organizer.startswith('MAILTO:'):
+        organizer = organizer[7:]
+
+    if hasattr(event['attendee'], 'startswith'):
+        attendees = [ event['attendee'] ]
+    else:
+        attendees = event['attendee']
+
+    for i, attendee in enumerate(attendees):
+        if attendee.startswith('MAILTO:'):
+            attendees[i] = attendee[7:]
+
+
+    print '='*70
+    print event['summary']
+    print '='*70
+    print
+
+    print 'WHEN: %s - %s' % (event_start, event_end)
+    print 'ORGANIZER:', organizer
+    print 'ATTENDING:', '\n           '.join(attendees)
+
+    print
+
+def parse_ics():
+    global opts
+
+    try:
+        cal = icalendar.cal.Calendar.from_string(open(sys.argv[2]).read())
+    except IndexError:
+        cal = icalendar.cal.Calendar.from_string(sys.stdin.read())
+
+    for x in cal.walk():
+        if x.name == 'VEVENT':
+            print_vevent(x)
+
+    if opts.wait:
+        print 'Press RETURN to continue...'
+        open('/dev/tty').readline()
+
+def main ():
+    global opts
+    try:
+        opts, args = parse_args()
+        parse_ics()
+    except Exception, detail:
+        print 'Failed to parse:', detail
+
+if __name__ == '__main__':
+    main()
+
