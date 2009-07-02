@@ -1,0 +1,7 @@
+#!/bin/sh
+
+RESULTS=$HOME/.mairix/results
+
+mairix -o $RESULTS "$@"
+mutt -f $RESULTS -R
+

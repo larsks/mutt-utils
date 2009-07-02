@@ -1,0 +1,89 @@
+#!/usr/bin/python
+
+import os
+import sys
+import optparse
+import icalendar
+
+from datetime import datetime
+
+opts = None
+
+def parse_args ():
+    p = optparse.OptionParser()
+    p.add_option('-w', '--wait', action='store_true')
+    p.add_option('-d', '--debug', action='store_true')
+
+    return p.parse_args()
+
+def from_iso (date):
+    # XXX: This is a hack to deal with ISO format dates with a terminal
+    # 'Z', which aren't handled by the datetime module.
+    if str(date).endswith('Z'):
+        date = str(date)[:-1]
+    return datetime.strptime(str(date), '%Y%m%dT%H%M%S')
+
+def mv_attr (attr):
+    if isinstance(attr, str):
+        val = [ attr ]
+    else:
+        val = attr
+
+    return val
+
+def print_vevent (event):
+
+    event_start = from_iso(event['dtstart'])
+    event_end = from_iso(event['dtend'])
+    
+    organizers = mv_attr(event.get('organizer', []))
+    for i, organizer in enumerate(organizers):
+        if organizer.lower().startswith('mailto'):
+            organizers[i] = organizer[7:]
+
+    attendees = mv_attr(event.get('attendee', []))
+    for i, attendee in enumerate(attendees):
+        if attendee.lower().startswith('mailto'):
+            attendees[i] = attendee[7:]
+
+    print '='*70
+    print event['summary']
+    print '='*70
+    print
+
+    print '      WHEN: %s - %s' % (event_start, event_end)
+    print 'ORGANIZERS:', '\n           '.join(organizers)
+    print ' ATTENDING:', '\n           '.join(attendees)
+
+    print
+
+def parse_ics():
+    global opts
+
+    try:
+        cal = icalendar.cal.Calendar.from_string(open(sys.argv[2]).read())
+    except IndexError:
+        cal = icalendar.cal.Calendar.from_string(sys.stdin.read())
+
+    for x in cal.walk():
+        if x.name == 'VEVENT':
+            print_vevent(x)
+
+    if opts.wait:
+        print 'Press RETURN to continue...'
+        open('/dev/tty').readline()
+
+def main ():
+    global opts
+    try:
+        opts, args = parse_args()
+        parse_ics()
+    except Exception, detail:
+        if opts.debug:
+            raise
+        else:
+            print 'Failed to parse:', detail
+
+if __name__ == '__main__':
+    main()
+

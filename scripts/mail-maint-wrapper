@@ -1,0 +1,33 @@
+#!/bin/bash
+
+PATH=$HOME/bin:$PATH
+export PATH
+
+while getopts 'v' ch; do
+	case $ch in
+		(v)	OUTPUT='cat';;
+	esac
+done
+shift $(( $OPTIND - 1 ))
+
+command=$1
+shift
+
+LOGDIR=$HOME/var/log/$command
+install -m 700 -d $LOGDIR
+
+LOCKDIR=$HOME/var/lock/$command
+if ! mkdir $LOCKDIR > /dev/null 2>&1; then
+	echo "$command: ERROR: Failed to acquire lock."
+	exit 1
+fi
+
+[ "$OUTPUT" ] || OUTPUT="/sbin/svlogd -tt $LOGDIR"
+
+trap 'rmdir $LOCKDIR' 0
+(
+echo "=== START $command ==="
+$command "$@" 
+echo "=== FINISH $command ==="
+) 2>&1 | $OUTPUT
+

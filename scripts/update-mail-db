@@ -1,0 +1,12 @@
+#!/bin/bash
+
+while getopts 'p' ch; do
+	case $ch in
+		(p)	MODE="--purge";;
+		(f)	MODE="--fast-index";;
+	esac
+done
+shift $(( $OPTIND - 1 ))
+
+exec /usr/bin/mairix -v $MODE
+
