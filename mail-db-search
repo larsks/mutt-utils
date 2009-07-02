@@ -1,7 +1,0 @@
-#!/bin/sh
-
-RESULTS=~/Mail/results
-
-mairix -o $RESULTS "$@"
-mutt -f $RESULTS -R
-
