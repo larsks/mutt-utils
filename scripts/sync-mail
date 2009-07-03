@@ -1,4 +1,15 @@
 #!/bin/bash
 
-exec /usr/bin/mbsync -a
+tmpfile=$(mktemp $HOME/.mutt/.stampXXXXXX)
+trap 'rm -f $tmpfile' 0
+
+/usr/bin/mbsync -a
+
+# Add addresses to lbdb.
+find $HOME/Mail -type f -newer $tmpfile -print |
+	xargs -i sh -c 'lbdb-fetchaddr < {}'
+
+# Purge duplicates from lbdb database.
+/usr/lib/lbdb/munge < $HOME/.lbdb/m_inmail.list > $tmpfile
+mv $tmpfile $HOME/.lbdb/m_inmail.list
 
