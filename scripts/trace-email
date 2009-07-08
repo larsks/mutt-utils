@@ -1,0 +1,78 @@
+#!/usr/bin/python
+
+import os
+import sys
+import email
+import optparse
+import re
+import time
+import pprint
+
+from subprocess import call
+
+re_received = re.compile('''
+    (from \s+ (?P<from>\S*) (\s+ \((?P<from_detail>[^)]*)\))? (\s+ with \s+ \S*)? \s+)?
+    (by \s+ (?P<by>\S*) (\s+ \((?P<by_detail>[^)]*)\))? \s+)?
+    (?P<detail>[^;]*); \s+ (?P<when>.*)
+        ''', re.VERBOSE)
+
+def good_secs (secs):
+    h = int(secs/3600)
+    m = int((secs - h*3600)/60)
+    s = int(secs - (h*3600) - (m*60))
+
+    return (h,m,s)
+
+def parse_args ():
+    p = optparse.OptionParser()
+    return p.parse_args()
+
+def main():
+    opts, args = parse_args()
+    call('clear')
+
+    total_lag = 0
+    prev_hop_secs = 0
+
+    msg = email.message_from_file(sys.stdin)
+    hdrs = msg.get_all('received')
+
+    print '    From:', msg.get('from')
+    print '   Subject:', msg.get('subject')
+    print 'Message-ID:', msg.get('message-id')
+    print
+
+    for i, hdr in enumerate(reversed(hdrs)):
+        hop_lag = 0
+        mo = re_received.match(hdr.replace('\n', ' '))
+        if not mo:
+            print '(invalid)'
+            continue
+
+#        print hdr
+#        pprint.pprint(mo.groupdict())
+
+        my_hop_time = email.utils.parsedate(mo.group('when'))
+        if not my_hop_time:
+            print 'FAILED:', mo.group('when')
+            sys.exit()
+
+        my_hop_secs = time.mktime(my_hop_time)
+
+        if prev_hop_secs:
+            hop_lag = my_hop_secs - prev_hop_secs
+
+        prev_hop_secs = my_hop_secs
+        total_lag += hop_lag
+        
+        print '%2d %-35s %-20s %8s %8s' % (
+                i,
+                mo.group('by'),
+                time.strftime('%Y-%m-%d %T', my_hop_time),
+                '%02d:%02d:%02d' % (good_secs(hop_lag)),
+                '%02d:%02d:%02d' % (good_secs(total_lag)),
+                )
+
+if __name__ == '__main__':
+    main()
+
