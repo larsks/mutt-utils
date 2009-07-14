@@ -1,6 +1,6 @@
 #!/bin/bash
 
-while getopts 'p' ch; do
+while getopts 'pf' ch; do
 	case $ch in
 		(p)	MODE="--purge";;
 		(f)	MODE="--fast-index";;
