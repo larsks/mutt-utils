@@ -3,5 +3,5 @@
 RESULTS=$HOME/.mairix/results
 
 mairix -o $RESULTS "$@"
-mutt -f $RESULTS -R
+mutt -e 'set quit=yes' -f $RESULTS -R
 
