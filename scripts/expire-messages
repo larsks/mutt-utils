@@ -7,11 +7,10 @@ trap 'rm -f $tmpfile' 0
 
 egrep -v '^$|^#' $HOME/.mutt/expire |
 while read folder expire; do
-	[ -d $HOME/Mail/$folder ] || continue
-
 	echo "Expiring messages from $folder."
 	find $HOME/Mail/$folder \
 		-type f -atime +$expire -print > $tmpfile
+	set +x
 
 	[ -s $tmpfile ] && {
 		xargs rm -f < $tmpfile
