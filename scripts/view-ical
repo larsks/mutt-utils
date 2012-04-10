@@ -57,11 +57,11 @@ def print_vevent (event):
 
     print
 
-def parse_ics():
+def parse_ics(args):
     global opts
 
     try:
-        cal = icalendar.cal.Calendar.from_string(open(sys.argv[2]).read())
+        cal = icalendar.cal.Calendar.from_string(open(args[0]).read())
     except IndexError:
         cal = icalendar.cal.Calendar.from_string(sys.stdin.read())
 
@@ -77,7 +77,7 @@ def main ():
     global opts
     try:
         opts, args = parse_args()
-        parse_ics()
+        parse_ics(args)
     except Exception, detail:
         if opts.debug:
             raise
