@@ -53,7 +53,7 @@ def print_vevent (event):
 
     print '      WHEN: %s - %s' % (event_start, event_end)
     print 'ORGANIZERS:', '\n           '.join(organizers)
-    print ' ATTENDING:', '\n           '.join(attendees)
+    print ' ATTENDING:', '\n            '.join(attendees)
 
     print
 
