@@ -1,0 +1,178 @@
+#!/usr/bin/python
+
+'''This script subscribes to filesystem changes in a Maildir using inotify
+and then updates an associate notmuch database appropriately.  This works
+around problems in mutt-kz (https://github.com/karelzak/mutt-kz) in which
+mutt renames files without updating the notmuch database.'''
+
+import os
+import sys
+import argparse
+import logging
+import time
+import inspect
+
+import pyinotify
+import notmuch
+
+def noerror (func):
+    '''This logs but otherwise ignores exceptions raised because a file was
+    renamed or deleted before we tried to do something with it).'''
+    def _(self, *args, **kwargs):
+        try:
+            return func(self, *args, **kwargs)
+        except notmuch.errors.FileError, detail:
+            self.log.error(str(detail))
+
+    _.__name__ = func.__name__
+    _.__doc__ = func.__doc__
+    return _
+
+class NotmuchContext (object):
+    '''This is a Python context manager for accessing a Notmuch database.
+    Use it with the `with` statement:
+
+    >>> with NotmuchContext('/path/to/database') as db:
+    ...   db.add_message('/path/to/message')
+    '''
+
+    def __init__(self, path):
+        self.path = path
+        self.db = None
+
+    def __enter__(self):
+        start=time.time()
+        while True:
+            try:
+                self.db = notmuch.Database(self.path,
+                        mode=notmuch.Database.MODE.READ_WRITE)
+                break
+            except notmuch.errors.XapianError:
+                if time.time() - start > 5:
+                    raise
+                time.sleep(1)
+
+        return self.db
+
+    def __exit__(self, type, value, traceback):
+        self.db.close()
+
+class MailWatcher(pyinotify.ProcessEvent):
+    '''Add and remove messages to/from the notmuch database in response
+    to inotify events.
+
+    - maildir -- path to notmuch database.
+    - handle_delete -- True if this MailWatcher instance should remove
+      files from notmuch when they are deleted (default False).
+    - handle_new -- True if this MailWatcher instance should add files
+      to notmuch when they are created (default False).
+
+    If you are delivering mail with notmuch-deliver and reading mail with a
+    notmuch-aware mail client (e.g., mutt-kz), you may be able to run with
+    handle_delete and handle_new set to False.
+    '''
+
+    def __init__(self, maildir,
+            handle_delete=False,
+            handle_new=False):
+        super(MailWatcher, self).__init__()
+
+        self.maildir       = maildir
+        self.handle_delete = handle_delete
+        self.handle_new    = handle_new
+
+        self.init_log()
+        self.init_inotify()
+
+    def init_log(self):
+        self.log = logging.getLogger('MailWatcher')
+
+    def init_inotify(self):
+        self.log.info('setting up watches on %s' % self.maildir)
+        self.mask = (
+                pyinotify.IN_MOVED_FROM  |
+                pyinotify.IN_MOVED_TO
+                )
+
+        if self.handle_delete:
+            self.log.debug('watching IN_DELETE events')
+            self.mask = self.mask | pyinotify.IN_DELETE
+        if self.handle_new:
+            self.log.debug('watching IN_CREATE events')
+            self.mask = self.mask | pyinotify.IN_CREATE
+
+        self.wm = pyinotify.WatchManager()
+        self.notifier = pyinotify.Notifier(self.wm, self)
+
+        self.watches = self.wm.add_watch(
+                self.maildir, self.mask, rec=True, auto_add=True,
+                exclude_filter = lambda x: os.path.basename(x) not in ['cur', 'new'],
+                )
+
+    def loop(self):
+        self.notifier.loop()
+
+    def process_IN_CREATE(self, event):
+        self.log.debug('%s: %s' % (
+            inspect.currentframe().f_code.co_name,
+            event))
+        return self.add_file(event)
+
+    def process_IN_MOVED_FROM(self, event):
+        '''Part 1 of a rename operation...remove the file from 
+        the database.'''
+        self.log.debug('%s: %s' % (
+            inspect.currentframe().f_code.co_name,
+            event))
+        return self.remove_file(event)
+
+    def process_IN_MOVED_TO(self, event):
+        '''Part 2 of a rename operation...add the new filename to the
+        database.'''
+        self.log.debug('%s: %s' % (
+            inspect.currentframe().f_code.co_name,
+            event))
+        return self.add_file(event)
+
+    def process_IN_DELETE(self, event):
+        self.log.debug('%s: %s' % (
+            inspect.currentframe().f_code.co_name,
+            event))
+        return self.remove_file(event)
+
+    @noerror
+    def remove_file(self, event):
+        if not event.dir:
+            self.log.info('remove %s' % event.pathname)
+            with NotmuchContext(self.maildir) as db:
+                db.remove_message(event.pathname)
+
+    @noerror
+    def add_file(self, event):
+        '''This adds a new file to the notmuch database.'''
+        if not event.dir:
+            self.log.info( 'add %s' % event.pathname)
+            with NotmuchContext(self.maildir) as db:
+                db.add_message(event.pathname)
+
+def parse_args():
+    p = argparse.ArgumentParser()
+    p.add_argument('--debug', '-d', action='store_true')
+    p.add_argument('maildir')
+    return p.parse_args()
+
+def main():
+    opts = parse_args()
+
+    if opts.debug:
+        level = logging.DEBUG
+    else:
+        level = logging.INFO
+
+    logging.basicConfig(level=level)
+    watcher = MailWatcher(opts.maildir)
+    watcher.loop()
+
+if __name__ == '__main__':
+    main()
+
