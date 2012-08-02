@@ -15,6 +15,8 @@ import inspect
 import pyinotify
 import notmuch
 
+lastactivity=time.time()
+
 def noerror (func):
     '''This logs but otherwise ignores exceptions raised because a file was
     renamed or deleted before we tried to do something with it).'''
@@ -41,6 +43,16 @@ class NotmuchContext (object):
         self.db = None
 
     def __enter__(self):
+        global lastactivity
+
+        if time.time() - lastactivity > 5:
+            # give other database clients time to settle.
+            time.sleep(2)
+
+        lastactivity=time.time()
+
+        # Wait for other database users to settle
+        # (but not for too long)
         start=time.time()
         while True:
             try:
@@ -142,7 +154,7 @@ class MailWatcher(pyinotify.ProcessEvent):
 
     @noerror
     def remove_file(self, event):
-        if not event.dir:
+        if not event.dir and not os.path.isfile(event.pathname):
             self.log.info('remove %s' % event.pathname)
             with NotmuchContext(self.maildir) as db:
                 db.remove_message(event.pathname)
@@ -150,7 +162,7 @@ class MailWatcher(pyinotify.ProcessEvent):
     @noerror
     def add_file(self, event):
         '''This adds a new file to the notmuch database.'''
-        if not event.dir:
+        if not event.dir and os.path.isfile(event.pathname):
             self.log.info( 'add %s' % event.pathname)
             with NotmuchContext(self.maildir) as db:
                 db.add_message(event.pathname)
