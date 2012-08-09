@@ -46,8 +46,15 @@ def render_markdown(msg):
 
     msg.set_type('multipart/mixed')
     msg.set_payload(None)
-    msg.attach(MIMEText(htmltext, 'html'))
-    msg.attach(MIMEText(mdtext, 'plain'))
+
+    htmlpart = MIMEText(htmltext, 'html')
+    htmlpart.set_param('name', 'message.html')
+
+    mdpart = MIMEText(mdtext, 'plain')
+    mdpart.set_param('name', 'message.txt')
+
+    msg.attach(htmlpart)
+    msg.attach(mdpart)
 
     # If there was a signature, append it as a text/plain
     # attachment.
