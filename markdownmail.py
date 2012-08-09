@@ -1,5 +1,16 @@
 #!/usr/bin/python
 
+'''Given an email message on stdin that consists of a single inline
+message, this will look for an initial '<!-- markdown -->' in the
+message body and, if found, will render the message body using
+Markdown and generate an HTML attachment (which will be followed by the
+original markdown contact as text/plain, which will be followed by a
+signature, if any was found in the original message).
+
+This filter uses the `markdown2` module and enables both the `footnotes`
+and `wiki-tables` extensions.
+'''
+
 import os
 import sys
 import argparse
@@ -15,7 +26,8 @@ def parse_args():
 def render_markdown(msg):
     plaintext = msg.get_payload()
 
-    # remove '<!-- markdown -->\n' marker.
+    # remove the first line (which we expect to 
+    # be the '<!-- markdown -->\n' marker).
     plaintext = plaintext.split('\n', 1)[1]
 
     # split on the signature marker (if any)
@@ -24,7 +36,7 @@ def render_markdown(msg):
     # extract the markdown payload and render it to html
     mdtext = plainparts.pop(0)
     htmltext = markdown.markdown(mdtext, extras=[
-        'code-color', 'wiki-tables'])
+        'footnotes', 'wiki-tables'])
 
     if plainparts:
         signature = plainparts.pop(0)
@@ -59,5 +71,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-
 
