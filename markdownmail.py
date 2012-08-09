@@ -68,7 +68,7 @@ def render_markdown(msg, options=None):
         msg.set_type('text/html')
         msg.set_payload(htmlpart.get_payload())
     else:
-        msg.set_type('multipart/mixed')
+        msg.set_type('multipart/alternative')
         msg.set_payload(None)
 
         msg.attach(htmlpart)
