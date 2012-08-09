@@ -20,7 +20,8 @@ import re
 
 import markdown2 as markdown
 
-re_marker = re.compile('<!-- markdown (?P<options>.*) ?-->')
+opts = None
+re_marker = re.compile('<!-- markdown (?P<flags>.*) ?-->')
 
 def parse_args():
     p = argparse.ArgumentParser()
@@ -28,27 +29,42 @@ def parse_args():
     p.add_argument('--only-html', '-H', action='store_true')
     return p.parse_args()
 
-def render_markdown(msg, options=None):
-    if options is None:
-        options = set()
+def render_markdown(msg, flags=None):
+    global opts
+
+    if flags is None:
+        flags = set()
 
     plaintext = msg.get_payload()
 
-    # remove the first line (which we expect to 
-    # be the '<!-- markdown -->\n' marker).
+    # strip the first line (containing the <!-- markdown --> marker)
     marker, plaintext = plaintext.split('\n', 1)
 
-    # Extract options from the markdown flag
+    # make sure there was a marker and extract any
+    # emedded flags.
     mo = re_marker.match(marker)
-    if mo:
-        options = set(mo.group('options').strip().split())
+    if not mo and not opts.always:
+        return msg
+    elif not mo:
+        # No marker but we're running with --always, so
+        # we need to recover the original message body.
+        plaintext = msg.get_payload()
 
-    # split on the signature marker (if any)
+    # flags are passed as a series of whitespace-separated
+    # words. Split them into a set.
+    if mo:
+        flags = flags.union(
+                set(mo.group('flags').strip().split()))
+
+    # look for a signature marker ('-- \n') and strip
+    # off the signature.
     try:
         mdtext, sigtext = plaintext.split('\n-- \n', 1)
-        if not 'strip-signature' in options:
-            mdsig = '\n'.join([ '    %s' % line for line in
-                sigtext.split('\n')])
+
+        # Tack signature back in as a verbatim block.
+        if not 'strip-signature' in flags:
+            mdsig = '\n'.join(
+                    ['    %s' % line for line in sigtext.split('\n')])
             mdtext = mdtext + '\n\n    -- \n' + mdsig
     except ValueError:
         mdtext = plaintext
@@ -59,14 +75,13 @@ def render_markdown(msg, options=None):
         'footnotes', 'wiki-tables', 'code-friendly'])
 
     ## Assemble message
-
     htmlpart = MIMEText(htmltext, 'html')
-    htmlpart.set_param('name', 'message.html')
+    htmlpart.del_param('name')
 
     plainpart = MIMEText(plaintext, 'plain')
-    plainpart.set_param('name', 'message.txt')
+    plainpart.del_param('name')
 
-    if 'only-html' in options:
+    if 'only-html' in flags:
         msg.set_type('text/html')
         msg.set_payload(htmlpart.get_payload())
     else:
@@ -79,16 +94,20 @@ def render_markdown(msg, options=None):
     return msg
 
 def main():
+    global opts
     opts = parse_args()
+    flags = set()
+
+    if opts.only_html:
+        flags.add('only-html')
 
     parser = email.parser.Parser()
     msg = parser.parse(sys.stdin)
 
     if not msg.is_multipart() \
-            and msg.get_content_type() == 'text/plain' \
-            and (opts.always or msg.get_payload().startswith('<!-- markdown ')):
+            and msg.get_content_type() == 'text/plain':
 
-        msg = render_markdown(msg)
+        msg = render_markdown(msg, flags=flags)
 
     print msg
 
