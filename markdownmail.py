@@ -9,6 +9,16 @@ signature, if any was found in the original message).
 
 This filter uses the `markdown2` module and enables the `footnotes`
 `code-friendly`, and `wiki-tables` extensions.
+
+You can add the following flags to the '<!-- markdown -->' block:
+
+- html-only -- create a single-part message with HTML content.
+- strip-signature -- Do not include message signature in the rendered content.
+
+For example:
+
+    <!-- markdown html-only -->
+
 '''
 
 import os
