@@ -44,25 +44,27 @@ def render_markdown(msg, options=None):
         options = set(mo.group('options').strip().split())
 
     # split on the signature marker (if any)
-    plainparts = plaintext.split('\n-- \n', 1)
+    try:
+        mdtext, sigtext = plaintext.split('\n-- \n', 1)
+        if not 'strip-signature' in options:
+            mdsig = '\n'.join([ '    %s' % line for line in
+                sigtext.split('\n')])
+            mdtext = mdtext + '\n\n    -- \n' + mdsig
+    except ValueError:
+        mdtext = plaintext
+        sigtext = None
 
-    # extract the markdown payload and render it to html
-    mdtext = plainparts.pop(0)
+    # render the markdown content to HTML
     htmltext = markdown.markdown(mdtext, extras=[
         'footnotes', 'wiki-tables', 'code-friendly'])
-
-    if plainparts:
-        signature = plainparts.pop(0)
-    else:
-        signature = None
 
     ## Assemble message
 
     htmlpart = MIMEText(htmltext, 'html')
     htmlpart.set_param('name', 'message.html')
 
-    mdpart = MIMEText(mdtext, 'plain')
-    mdpart.set_param('name', 'message.txt')
+    plainpart = MIMEText(plaintext, 'plain')
+    plainpart.set_param('name', 'message.txt')
 
     if 'only-html' in options:
         msg.set_type('text/html')
@@ -71,15 +73,8 @@ def render_markdown(msg, options=None):
         msg.set_type('multipart/alternative')
         msg.set_payload(None)
 
+        msg.attach(plainpart)
         msg.attach(htmlpart)
-        msg.attach(mdpart)
-
-        # If there was a signature, append it as a text/plain
-        # attachment.
-        if signature:
-            sigpart = MIMEText('\n-- \n' + signature, 'plain')
-            sigpart.set_param('name', 'signature.txt')
-            msg.attach(sigpart)
 
     return msg
 
@@ -91,7 +86,7 @@ def main():
 
     if not msg.is_multipart() \
             and msg.get_content_type() == 'text/plain' \
-            and msg.get_payload().startswith('<!-- markdown '):
+            and (opts.always or msg.get_payload().startswith('<!-- markdown ')):
 
         msg = render_markdown(msg)
 
