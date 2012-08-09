@@ -16,20 +16,32 @@ import sys
 import argparse
 import email.parser
 from email.mime.text import MIMEText
+import re
 
 import markdown2 as markdown
 
+re_marker = re.compile('<!-- markdown (?P<options>.*) ?-->')
+
 def parse_args():
     p = argparse.ArgumentParser()
-    p.add_argument('--marker', '-m', default='<!-- markdown -->')
+    p.add_argument('--always', '-A', action='store_true')
+    p.add_argument('--only-html', '-H', action='store_true')
     return p.parse_args()
 
-def render_markdown(msg):
+def render_markdown(msg, options=None):
+    if options is None:
+        options = set()
+
     plaintext = msg.get_payload()
 
     # remove the first line (which we expect to 
     # be the '<!-- markdown -->\n' marker).
-    plaintext = plaintext.split('\n', 1)[1]
+    marker, plaintext = plaintext.split('\n', 1)
+
+    # Extract options from the markdown flag
+    mo = re_marker.match(marker)
+    if mo:
+        options = set(mo.group('options').strip().split())
 
     # split on the signature marker (if any)
     plainparts = plaintext.split('\n-- \n', 1)
@@ -44,8 +56,7 @@ def render_markdown(msg):
     else:
         signature = None
 
-    msg.set_type('multipart/mixed')
-    msg.set_payload(None)
+    ## Assemble message
 
     htmlpart = MIMEText(htmltext, 'html')
     htmlpart.set_param('name', 'message.html')
@@ -53,15 +64,22 @@ def render_markdown(msg):
     mdpart = MIMEText(mdtext, 'plain')
     mdpart.set_param('name', 'message.txt')
 
-    msg.attach(htmlpart)
-    msg.attach(mdpart)
+    if 'only-html' in options:
+        msg.set_type('text/html')
+        msg.set_payload(htmlpart.get_payload())
+    else:
+        msg.set_type('multipart/mixed')
+        msg.set_payload(None)
 
-    # If there was a signature, append it as a text/plain
-    # attachment.
-    if signature:
-        sigpart = MIMEText('\n-- \n' + signature, 'plain')
-        sigpart.set_param('name', 'signature.txt')
-        msg.attach(sigpart)
+        msg.attach(htmlpart)
+        msg.attach(mdpart)
+
+        # If there was a signature, append it as a text/plain
+        # attachment.
+        if signature:
+            sigpart = MIMEText('\n-- \n' + signature, 'plain')
+            sigpart.set_param('name', 'signature.txt')
+            msg.attach(sigpart)
 
     return msg
 
@@ -73,7 +91,7 @@ def main():
 
     if not msg.is_multipart() \
             and msg.get_content_type() == 'text/plain' \
-            and msg.get_payload().startswith('%s\n' % opts.marker):
+            and msg.get_payload().startswith('<!-- markdown '):
 
         msg = render_markdown(msg)
 
