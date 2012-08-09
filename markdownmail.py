@@ -7,8 +7,8 @@ Markdown and generate an HTML attachment (which will be followed by the
 original markdown contact as text/plain, which will be followed by a
 signature, if any was found in the original message).
 
-This filter uses the `markdown2` module and enables both the `footnotes`
-and `wiki-tables` extensions.
+This filter uses the `markdown2` module and enables the `footnotes`
+`code-friendly`, and `wiki-tables` extensions.
 '''
 
 import os
@@ -21,6 +21,7 @@ import markdown2 as markdown
 
 def parse_args():
     p = argparse.ArgumentParser()
+    p.add_argument('--marker', '-m', default='<!-- markdown -->')
     return p.parse_args()
 
 def render_markdown(msg):
@@ -36,7 +37,7 @@ def render_markdown(msg):
     # extract the markdown payload and render it to html
     mdtext = plainparts.pop(0)
     htmltext = markdown.markdown(mdtext, extras=[
-        'footnotes', 'wiki-tables'])
+        'footnotes', 'wiki-tables', 'code-friendly'])
 
     if plainparts:
         signature = plainparts.pop(0)
@@ -63,7 +64,7 @@ def main():
 
     if not msg.is_multipart() \
             and msg.get_content_type() == 'text/plain' \
-            and msg.get_payload().startswith('<!-- markdown -->\n'):
+            and msg.get_payload().startswith('%s\n' % opts.marker):
 
         msg = render_markdown(msg)
 
