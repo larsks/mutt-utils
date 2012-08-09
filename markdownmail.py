@@ -65,7 +65,7 @@ def render_markdown(msg, flags=None):
         if not 'strip-signature' in flags:
             mdsig = '\n'.join(
                     ['    %s' % line for line in sigtext.split('\n')])
-            mdtext = mdtext + '\n\n    -- \n' + mdsig
+            mdtext = mdtext + '\n\n' + '<!-- signature -->\n\n    -- \n' + mdsig
     except ValueError:
         mdtext = plaintext
         sigtext = None
