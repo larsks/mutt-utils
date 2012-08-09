@@ -59,7 +59,9 @@ def render_markdown(msg):
     # If there was a signature, append it as a text/plain
     # attachment.
     if signature:
-        msg.attach(MIMEText('\n-- \n' + signature, 'plain'))
+        sigpart = MIMEText('\n-- \n' + signature, 'plain')
+        sigpart.set_param('name', 'signature.txt')
+        msg.attach(sigpart)
 
     return msg
 
