@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 '''Given an email message on stdin that consists of a single inline
 message, this will look for an initial '<!-- markdown -->' in the
@@ -26,6 +26,7 @@ import sys
 import argparse
 import email.parser
 from email.mime.text import MIMEText
+from email.generator import Generator
 import re
 
 import markdown2 as markdown
@@ -119,7 +120,8 @@ def main():
 
         msg = render_markdown(msg, flags=flags)
 
-    print msg
+    g = Generator(sys.stdout, mangle_from_=False)
+    g.flatten(msg)
 
 if __name__ == '__main__':
     main()
