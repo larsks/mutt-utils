@@ -79,7 +79,6 @@ def render_markdown(msg, flags=None):
             mdtext = mdtext + '\n\n' + '<!-- signature -->\n\n    -- \n' + mdsig
     except ValueError:
         mdtext = plaintext
-        sigtext = None
 
     # render the markdown content to HTML
     htmltext = markdown.markdown(mdtext, extras=[
