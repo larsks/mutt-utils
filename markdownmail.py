@@ -50,6 +50,9 @@ def parse_args():
     return p.parse_args()
 
 def make_multipart(msg):
+    '''Takes a flat message and turns it into a message with 
+    a single text/plain attachment.'''
+
     plaintext = msg.get_payload()
     msg.set_payload(None)
     msg.set_type('multipart/alternative')
@@ -116,7 +119,8 @@ def process_message(origmsg, flags=None):
 
     plaintext = plainpart.get_payload()
     msgflags, content, signature = get_markdown_content(plaintext)
-    flags.update(msgflags)
+    if msgflags is not None:
+        flags.update(msgflags)
 
     plainpart = MIMEText(content + '\n-- \n' + signature)
 
