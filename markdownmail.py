@@ -24,8 +24,10 @@ For example:
 import os
 import sys
 import argparse
+import copy
 import email.parser
 from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from email.generator import Generator
 import re
 
@@ -34,73 +36,112 @@ import markdown2 as markdown
 opts = None
 re_marker = re.compile('<!-- markdown (?P<flags>.*) ?-->')
 
+class MarkdownError (Exception):
+    pass
+
+class InvalidInputMessage (Exception):
+    pass
+
 def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument('--always', '-A', action='store_true')
+    p.add_argument('--force', '-F', action='store_true')
     p.add_argument('--only-html', '-H', action='store_true')
     return p.parse_args()
 
-def render_markdown(msg, flags=None):
+def make_multipart(msg):
+    plaintext = msg.get_payload()
+    msg.set_payload(None)
+    msg.set_type('multipart/alternative')
+    plainpart = MIMEText(plaintext, 'plain')
+    plainpart.del_param('name')
+    msg.attach(plainpart)
+
+def get_markdown_content(text):
     global opts
 
-    if flags is None:
-        flags = set()
-
-    plaintext = msg.get_payload()
+    flags = None
+    signature = None
 
     # strip the first line (containing the <!-- markdown --> marker)
-    marker, plaintext = plaintext.split('\n', 1)
+    marker, content = text.split('\n', 1)
 
     # make sure there was a marker and extract any
     # emedded flags.
     mo = re_marker.match(marker)
-    if not mo and not opts.always:
-        return msg
-    elif not mo:
-        # No marker but we're running with --always, so
-        # we need to recover the original message body.
-        plaintext = msg.get_payload()
-
-    # flags are passed as a series of whitespace-separated
-    # words. Split them into a set.
     if mo:
-        flags = flags.union(
-                set(mo.group('flags').strip().split()))
+        flags = mo.groupdict()
+    else:
+        content = text
 
-    # look for a signature marker ('-- \n') and strip
-    # off the signature.
     try:
-        mdtext, sigtext = plaintext.split('\n-- \n', 1)
-
-        # Tack signature back in as a verbatim block.
-        if not 'strip-signature' in flags:
-            mdsig = '\n'.join(
-                    ['    %s' % line for line in sigtext.split('\n')])
-            mdtext = mdtext + '\n\n' + '<!-- signature -->\n\n    -- \n' + mdsig
+        content, signature = content.split('\n-- \n', 1)
     except ValueError:
-        mdtext = plaintext
+        pass
+
+    return (flags, content, signature)
+
+def process_message(origmsg, flags=None):
+    global opts
+
+    msg = copy.deepcopy(origmsg)
+
+    if flags is None:
+        flags = set()
+
+    if not msg.is_multipart():
+        if msg.get_content_type() != 'text/plain':
+            # We don't know what to do with this message.
+            raise InvalidInputMessage('Main body is not text/plain')
+        make_multipart(msg)
+
+    # Make sure there is only one text/plain part and that it is
+    # the first part.
+    if msg.get_payload()[0].get_content_type() != 'text/plain':
+        raise InvalidInputMessage('first part is not text/plain')
+
+    found_text_part = False
+    for p in msg.get_payload():
+        if p.get_content_type() == 'text/plain':
+            if found_text_part:
+                raise InvalidInputMessage('More than one text/plain part')
+            found_text_part = True
+
+    plainpart = msg.get_payload()[0]
+    auxparts = msg.get_payload()[1:]
+    rootpart = MIMEMultipart('related')
+
+    msg.set_payload(None)
+    msg.set_type('multipart/alternative')
+
+    plaintext = plainpart.get_payload()
+    msgflags, content, signature = get_markdown_content(plaintext)
+    flags.update(msgflags)
+
+    plainpart = MIMEText(content + '\n-- \n' + signature)
+
+    if not 'strip-signature' in flags:
+        content = content \
+                + '\n<!-- signature -->\n\n' \
+                + '    -- \n' \
+                + '\n'.join(['    %s' % x for x in signature.split('\n')])
 
     # render the markdown content to HTML
-    htmltext = markdown.markdown(mdtext, extras=[
+    htmltext = markdown.markdown(content, extras=[
         'footnotes', 'wiki-tables', 'code-friendly'])
-
-    ## Assemble message
     htmlpart = MIMEText(htmltext, 'html')
     htmlpart.del_param('name')
 
-    plainpart = MIMEText(plaintext, 'plain')
-    plainpart.del_param('name')
-
-    if 'only-html' in flags:
-        msg.set_type('text/html')
-        msg.set_payload(htmlpart.get_payload())
-    else:
-        msg.set_type('multipart/alternative')
-        msg.set_payload(None)
-
+    if not 'only-html' in flags:
         msg.attach(plainpart)
-        msg.attach(htmlpart)
 
+    rootpart.attach(htmlpart)
+    for part in auxparts:
+        if part.get_filename():
+            part.add_header('Content-ID', '<%s>' % part.get_filename())
+        rootpart.attach(part)
+
+    msg.attach(rootpart)
     return msg
 
 def main():
@@ -113,11 +154,16 @@ def main():
 
     parser = email.parser.Parser()
     msg = parser.parse(sys.stdin)
-
-    if not msg.is_multipart() \
-            and msg.get_content_type() == 'text/plain':
-
-        msg = render_markdown(msg, flags=flags)
+    
+    try:
+        msg = process_message(msg, flags=flags)
+    except InvalidInputMessage:
+        pass
+    except Exception, detail:
+        if not opts.force:
+            raise
+        else:
+            print >>sys.stderr, 'ERROR: %s' % detail
 
     g = Generator(sys.stdout, mangle_from_=False)
     g.flatten(msg)
