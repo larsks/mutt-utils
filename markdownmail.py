@@ -67,7 +67,7 @@ def get_markdown_content(text):
     signature = None
 
     # strip the first line (containing the <!-- markdown --> marker)
-    marker, content = text.split('\n', 1)
+    marker, plaintext = text.split('\n', 1)
 
     # make sure there was a marker and extract any
     # emedded flags.
@@ -75,14 +75,15 @@ def get_markdown_content(text):
     if mo:
         flags = mo.groupdict()
     else:
-        content = text
+        # No marker -- recover original text
+        plaintext = text
 
     try:
-        content, signature = content.split('\n-- \n', 1)
+        content, signature = plaintext.split('\n-- \n', 1)
     except ValueError:
-        pass
+        content = plaintext
 
-    return (flags, content, signature)
+    return (flags, plaintext, content, signature)
 
 def process_message(origmsg, flags=None):
     global opts
@@ -118,17 +119,20 @@ def process_message(origmsg, flags=None):
     msg.set_type('multipart/alternative')
 
     plaintext = plainpart.get_payload()
-    msgflags, content, signature = get_markdown_content(plaintext)
-    if msgflags is not None:
+    msgflags, plaintext, content, signature = get_markdown_content(plaintext)
+    if msgflags is None and not opts.always:
+        raise InvalidInputMessage('No markdown marker.')
+    elif msgflags is not None:
         flags.update(msgflags)
 
-    plainpart = MIMEText(content + '\n-- \n' + signature)
+    # We regenerate plainpart here because we may have stripped
+    # off the `<!-- markdown -->` marker.
+    plainpart = MIMEText(plaintext)
 
+    # Append the signature as a `<pre>` block to the markdown
+    # content.
     if not 'strip-signature' in flags:
-        content = content \
-                + '\n<!-- signature -->\n\n' \
-                + '    -- \n' \
-                + '\n'.join(['    %s' % x for x in signature.split('\n')])
+        content = content + '\n<pre>-- \n%s\n</pre>' % signature
 
     # render the markdown content to HTML
     htmltext = markdown.markdown(content, extras=[
