@@ -4,6 +4,7 @@ import os
 import sys
 import optparse
 import icalendar
+import textwrap
 
 from datetime import datetime
 
@@ -46,14 +47,23 @@ def print_vevent (event):
         if attendee.lower().startswith('mailto'):
             attendees[i] = attendee[7:]
 
+    description = mv_attr(event.get('description', []))
+
     print '='*70
     print event['summary']
     print '='*70
     print
 
-    print '      WHEN: %s - %s' % (event_start, event_end)
-    print 'ORGANIZERS:', '\n           '.join(organizers)
-    print ' ATTENDING:', '\n            '.join(attendees)
+    print '       WHEN: %s - %s' % (event_start, event_end)
+    print ' ORGANIZERS:', '\n            '.join(organizers)
+    print '  ATTENDING:', '\n             '.join(attendees)
+
+    if description:
+        print
+        print 'DESCRIPTION:', textwrap.fill(description,
+                width=60,
+                initial_indent='',
+                subsequent_indent='             ')
 
     print
 
