@@ -142,7 +142,7 @@ def process_message(origmsg, flags=None):
         msg.attach(plainpart)
 
         if 'include-src' in flags:
-            mdpart = MIMEText(content, 'text/x-markdown')
+            mdpart = MIMEText(content, 'x-markdown')
             msg.attach(mdpart)
 
     rootpart.attach(htmlpart)
