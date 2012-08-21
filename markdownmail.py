@@ -14,6 +14,7 @@ You can add the following flags to the '<!-- markdown -->' block:
 
 - html-only -- create a single-part message with HTML content.
 - strip-signature -- Do not include message signature in the rendered content.
+- include-src -- include markdown as a text/x-markdown alternative
 
 For example:
 
@@ -73,7 +74,7 @@ def get_markdown_content(text):
     # emedded flags.
     mo = re_marker.match(marker)
     if mo:
-        flags = mo.groupdict()
+        flags = set(mo.group('flags').split())
     else:
         # No marker -- recover original text
         plaintext = text
@@ -125,10 +126,6 @@ def process_message(origmsg, flags=None):
     elif msgflags is not None:
         flags.update(msgflags)
 
-    # We regenerate plainpart here because we may have stripped
-    # off the `<!-- markdown -->` marker.
-    plainpart = MIMEText(plaintext)
-
     # Append the signature as a `<pre>` block to the markdown
     # content.
     if not 'strip-signature' in flags:
@@ -141,7 +138,12 @@ def process_message(origmsg, flags=None):
     htmlpart.del_param('name')
 
     if not 'only-html' in flags:
+        plainpart = MIMEText(plaintext)
         msg.attach(plainpart)
+
+        if 'include-src' in flags:
+            mdpart = MIMEText(content, 'text/x-markdown')
+            msg.attach(mdpart)
 
     rootpart.attach(htmlpart)
     for part in auxparts:
