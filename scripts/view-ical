@@ -63,7 +63,7 @@ def print_vevent (event):
         print 'DESCRIPTION:', textwrap.fill(description,
                 width=60,
                 initial_indent='',
-                subsequent_indent='             ')
+                subsequent_indent='             ').encode('utf-8')
 
     print
 
