@@ -48,6 +48,7 @@ def print_vevent (event):
             attendees[i] = attendee[7:]
 
     description = mv_attr(event.get('description', []))
+    location = mv_attr(event.get('location', []))
 
     print '='*70
     print event['summary']
@@ -55,6 +56,8 @@ def print_vevent (event):
     print
 
     print '       WHEN: %s - %s' % (event_start, event_end)
+    if location:
+      print '      WHERE: %s' % (location)
     print ' ORGANIZERS:', '\n            '.join(organizers)
     print '  ATTENDING:', '\n             '.join(attendees)
 
