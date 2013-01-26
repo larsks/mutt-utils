@@ -128,7 +128,7 @@ def process_message(origmsg, flags=None):
 
     # Append the signature as a `<pre>` block to the markdown
     # content.
-    if not 'strip-signature' in flags:
+    if signature not 'strip-signature' in flags:
         content = content + '\n<pre>-- \n%s\n</pre>' % signature
 
     # render the markdown content to HTML
