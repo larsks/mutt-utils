@@ -64,9 +64,11 @@ def print_vevent (event):
     print '  ATTENDING:', '\n             '.join(attendees)
 
     if description:
-        print 'DESCRIPTION:', textwrap.fill(description,
+        print 'DESCRIPTION:', 
+        for line in description.split('\n'):
+            print textwrap.fill(line,
                 width=60,
-                initial_indent='',
+                initial_indent='             ',
                 subsequent_indent='             ').encode('utf-8')
 
     print
