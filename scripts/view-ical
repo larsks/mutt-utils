@@ -18,6 +18,8 @@ def parse_args ():
     return p.parse_args()
 
 def from_iso (date):
+    if hasattr(date, 'dt'):
+        return date.dt
     # XXX: This is a hack to deal with ISO format dates with a terminal
     # 'Z', which aren't handled by the datetime module.
     if str(date).endswith('Z'):
@@ -25,7 +27,7 @@ def from_iso (date):
     return datetime.strptime(str(date), '%Y%m%dT%H%M%S')
 
 def mv_attr (attr):
-    if isinstance(attr, str):
+    if isinstance(attr, basestring):
         val = [ attr ]
     else:
         val = attr
@@ -47,8 +49,8 @@ def print_vevent (event):
         if attendee.lower().startswith('mailto'):
             attendees[i] = attendee[7:]
 
-    description = mv_attr(event.get('description', []))
-    location = mv_attr(event.get('location', []))
+    description = event.get('description', [])
+    location = event.get('location', [])
 
     print '='*70
     print event['summary']
@@ -62,7 +64,6 @@ def print_vevent (event):
     print '  ATTENDING:', '\n             '.join(attendees)
 
     if description:
-        print
         print 'DESCRIPTION:', textwrap.fill(description,
                 width=60,
                 initial_indent='',
@@ -74,9 +75,9 @@ def parse_ics(args):
     global opts
 
     try:
-        cal = icalendar.cal.Calendar.from_string(open(args[0]).read())
+        cal = icalendar.cal.Calendar.from_ical(open(args[0]).read())
     except IndexError:
-        cal = icalendar.cal.Calendar.from_string(sys.stdin.read())
+        cal = icalendar.cal.Calendar.from_ical(sys.stdin.read())
 
     for x in cal.walk():
         if x.name == 'VEVENT':
