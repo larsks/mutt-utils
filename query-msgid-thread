@@ -1,0 +1,18 @@
+#!/usr/bin/python
+
+# Reads a message on stdin and generates a Notmuch query that will return
+# all the messages in the same thread.  To use this, you'll need to add
+# a mutt macro like the following:
+#
+# macro index \\t "<pipe-message>~/bin/query-msgid-thread > ~/tmp/vfolderquery<enter><enter-command>source ~/tmp/vfolderquery<enter>"
+
+import sys
+from email.parser import Parser
+from email.utils import parseaddr
+
+parser = Parser()
+msg = parser.parse(sys.stdin)
+msgid = msg['message-id'][1:-1]
+
+print 'push "<vfolder-from-query>id:%s &type=threads<return>"' % (msgid)
+
