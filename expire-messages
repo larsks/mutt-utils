@@ -10,6 +10,7 @@ def parse_args():
     p = argparse.ArgumentParser()
 
     p.add_argument('--database', '-d')
+    p.add_argument('--verbose', '-v', action='store_true')
 
     return p.parse_args()
 
@@ -56,6 +57,8 @@ def main():
         db.begin_atomic()
         for msg in q.search_messages():
             fn = msg.get_filename()
+            if args.verbose:
+                print 'msg:', fn
             db.remove_message(fn)
             os.unlink(fn)
         db.end_atomic()
