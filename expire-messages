@@ -4,6 +4,8 @@ import os
 import sys
 import re
 import argparse
+import logging
+
 import notmuch
 
 def parse_args():
@@ -11,6 +13,7 @@ def parse_args():
 
     p.add_argument('--database', '-d')
     p.add_argument('--verbose', '-v', action='store_true')
+    p.add_argument('--dryrun', '-n', action='store_true')
 
     return p.parse_args()
 
@@ -33,6 +36,13 @@ def parse_timespec(ts):
 
 def main():
     args = parse_args()
+    logging.basicConfig(
+            format='%(asctime)s %(name)s %(levelname)s: %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S',
+            level=logging.INFO if args.verbose else logging.WARN)
+
+    log = logging.getLogger('expire-messages')
+
     db = notmuch.database.Database(args.database,
             mode=notmuch.database.Database.MODE.READ_WRITE)
 
@@ -40,25 +50,31 @@ def main():
     for tag in db.get_all_tags():
         if tag.startswith('expire:'):
             expiretags.append(tag)
-    
+
+    log.info('found expire tags: %s', ', '.join(expiretags))
+
     for tag in expiretags:
         timespec = parse_timespec(tag.split(':')[1])
         search = 'tag:%s AND date:..%s_days' % (tag, timespec)
-        print 'searching for %s (expire older than %s days)' % (
+        log.info('searching for %s (expire older than %s days)' % (
                 search,
-                timespec)
+                timespec))
 
         try:
             q = db.create_query(search)
         except notmuch.errors.NullPointerError:
-            print 'No messages.'
-            pass
+            log.info('no messages.')
 
         db.begin_atomic()
         for msg in q.search_messages():
             fn = msg.get_filename()
             if args.verbose:
-                print 'msg:', fn
+                log.info('removing message %s (%s)',
+                        msg.get_message_id(),
+                        fn)
+            if args.dryrun:
+                continue
+
             db.remove_message(fn)
             os.unlink(fn)
         db.end_atomic()
