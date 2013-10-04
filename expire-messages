@@ -1,0 +1,67 @@
+#!/usr/bin/python
+
+import os
+import sys
+import re
+import argparse
+import notmuch
+
+def parse_args():
+    p = argparse.ArgumentParser()
+
+    p.add_argument('--database', '-d')
+
+    return p.parse_args()
+
+def parse_timespec(ts):
+    mo = re.match('(\d+)([dwmy])', ts)
+    if not mo:
+        raise ValueError('invalid time spec: %s' % ts)
+
+    val = int(mo.group(1))
+    unit = mo.group(2)
+
+    if unit == 'd':
+        pass
+    elif unit == 'w':
+        val *= 7
+    elif unit == 'y':
+        val *= 365
+
+    return val
+
+def main():
+    args = parse_args()
+    db = notmuch.database.Database(args.database,
+            mode=notmuch.database.Database.MODE.READ_WRITE)
+
+    expiretags = []
+    for tag in db.get_all_tags():
+        if tag.startswith('expire:'):
+            expiretags.append(tag)
+    
+    for tag in expiretags:
+        timespec = parse_timespec(tag.split(':')[1])
+        search = 'tag:%s AND date:..%s_days' % (tag, timespec)
+        print 'searching for %s (expire older than %s days)' % (
+                search,
+                timespec)
+
+        try:
+            q = db.create_query(search)
+        except notmuch.errors.NullPointerError:
+            print 'No messages.'
+            pass
+
+        db.begin_atomic()
+        for msg in q.search_messages():
+            fn = msg.get_filename()
+            db.remove_message(fn)
+            os.unlink(fn)
+        db.end_atomic()
+
+    db.close()
+
+if __name__ == '__main__':
+    main()
+
