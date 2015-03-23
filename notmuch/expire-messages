@@ -8,6 +8,7 @@ import logging
 
 import notmuch
 
+
 def parse_args():
     p = argparse.ArgumentParser()
 
@@ -16,6 +17,7 @@ def parse_args():
     p.add_argument('--dryrun', '-n', action='store_true')
 
     return p.parse_args()
+
 
 def parse_timespec(ts):
     mo = re.match('(\d+)([dwmy])', ts)
@@ -33,6 +35,7 @@ def parse_timespec(ts):
         val *= 365
 
     return val
+
 
 def main():
     args = parse_args()
@@ -55,10 +58,10 @@ def main():
 
     for tag in expiretags:
         timespec = parse_timespec(tag.split(':')[1])
-        search = 'tag:%s AND date:..%s_days' % (tag, timespec)
+        search = 'NOT tag:flagged AND NOT tag:keep AND tag:%s AND date:..%s_days' % (tag, timespec)
         log.info('searching for %s (expire older than %s days)' % (
-                search,
-                timespec))
+            search,
+            timespec))
 
         try:
             q = db.create_query(search)
@@ -70,8 +73,8 @@ def main():
             fn = msg.get_filename()
             if args.verbose:
                 log.info('removing message %s (%s)',
-                        msg.get_message_id(),
-                        fn)
+                         msg.get_message_id(),
+                         fn)
             if args.dryrun:
                 continue
 
@@ -81,6 +84,6 @@ def main():
 
     db.close()
 
+
 if __name__ == '__main__':
     main()
-
