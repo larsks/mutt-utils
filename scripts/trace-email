@@ -42,15 +42,12 @@ def main():
     print 'Message-ID:', msg.get('message-id')
     print
 
-    for i, hdr in enumerate(reversed(hdrs)):
+    for i, hdr in enumerate(reversed(hdrs if hdrs else [])):
         hop_lag = 0
         mo = re_received.match(hdr.replace('\n', ' '))
         if not mo:
             print '(invalid)'
             continue
-
-#        print hdr
-#        pprint.pprint(mo.groupdict())
 
         my_hop_time = email.utils.parsedate(mo.group('when'))
         if not my_hop_time:
