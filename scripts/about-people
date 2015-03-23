@@ -1,0 +1,57 @@
+#!/usr/bin/python
+
+import os
+import sys
+import subprocess
+import time
+from email.parser import Parser
+from email.utils import parseaddr
+
+import yaml
+
+os.system('clear')
+
+parser = Parser()
+people = []
+msg = parser.parse(sys.stdin)
+
+for header in ['from', 'to', 'cc']:
+    header_data = msg[header]
+    if not header_data:
+        continue
+
+    for addr in header_data.split(','):
+        addr = parseaddr(addr.strip())
+        if not addr[1]:
+            continue
+
+        if addr[1].endswith('@redhat.com'):
+            info = subprocess.check_output(['orgchart', '--yaml', 'user', 
+                '--mail={}'.format(addr[1])])
+            data = yaml.load(info)
+            if data:
+                data[0]['orig_email'] = addr[1]
+                people.append(data[0])
+                continue
+
+            people.append({
+                'orig_email': addr[1],
+                'user_email': [addr[1]],
+                'realname': addr[0],
+            })
+
+for person in people:
+    print '    %-20s %-30s %s' % (
+        person['orig_email'],
+        person['realname'],
+        person.get('title', ''),
+    )
+    if 'group' in person:
+        print '    %-20s %-30s %s' % (
+            '',
+            person['group']['name'],
+            person['group'].get('parent', ''),
+        )
+    print
+
+

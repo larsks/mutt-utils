@@ -1,0 +1,46 @@
+#!/usr/bin/python
+
+import os
+import sys
+import subprocess
+import jinja2
+from email.parser import Parser
+from email.utils import parseaddr
+
+import yaml
+
+os.system('clear')
+
+parser = Parser()
+people = []
+msg = parser.parse(sys.stdin)
+
+addr = msg['from']
+addr = parseaddr(addr.strip())
+if not addr[1]:
+    sys.exit()
+
+if not addr[1].endswith('@redhat.com'):
+    sys.exit()
+
+info = subprocess.check_output(['orgchart', '--yaml', 'user',
+                                '--mail={}'.format(addr[1])])
+data = yaml.load(info)
+data = data[0]
+
+template = jinja2.Template(
+'''======================================================================
+{{realname|center(70)}}
+======================================================================
+
+   Title: {{title}}
+  Groups: {{group.name}}
+Location: {{location}} ({{room_number}})
+ Manager: {{manager}}
+
+Username: {{name}}
+   Email: {{user_mail|join('\n')|indent(10)}}
+''')
+
+print template.render(**data)
+
