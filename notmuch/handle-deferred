@@ -25,10 +25,10 @@ while :; do
 done
 
 if [ "$deferred_mode" = later ]; then
-	query="tag:defer:later"
+	tag="defer:later"
 else
 	today=$(date +%A | tr '[:upper:]' '[:lower:]')
-	query="tag:defer:$today"
+	tag="defer:$today"
 fi
 
-notmuch tag +inbox -defer:later -archive -- $query
+notmuch tag +inbox -${tag} -archive -- tag:${tag}
