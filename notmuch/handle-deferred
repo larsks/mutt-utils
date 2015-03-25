@@ -1,0 +1,34 @@
+#!/bin/sh
+
+ARGS=$(getopt -o l --long later -n handle-deferred -- "$@")
+
+if [ $? -ne 0 ]; then
+	echo "usage: handle-deferred [--later]"
+	exit 2
+fi
+
+eval set -- "$ARGS"
+
+while :; do
+	case "$1" in
+		-l|--later)
+			deferred_mode=later
+			shift
+			;;
+		--)	shift
+			break
+			;;
+
+		*)	break
+			;;
+	esac
+done
+
+if [ "$deferred_mode" = later ]; then
+	query="tag:defer:later"
+else
+	today=$(date +%A | tr '[:upper:]' '[:lower:]')
+	query="tag:defer:$today"
+fi
+
+notmuch tag +inbox -defer:later -archive -- $query
