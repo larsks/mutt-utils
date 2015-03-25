@@ -1,0 +1,5 @@
+# Handle "later" deferrals at 3PM
+00 15 * * * $HOME/bin/handle-deferred -l > /dev/null 2>&1
+
+# Handle other deferrals sometime early in the morning
+@daily $HOME/bin/handle-deferred > /dev/null 2>&1

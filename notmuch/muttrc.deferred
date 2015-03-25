@@ -1,0 +1,19 @@
+# This is an example set of keybindings for use with the "handle-deferred"
+# script.  You can type, for example, "\D" to defer a message until later
+# in the day, or "\dw" to defer a message until the following Wednesday.
+#
+# You will need the appropriate crontab entries in place to make this work.
+
+macro index,pager \\D "<modify-labels-then-hide>+archive +defer:later -inbox\n<sync-mailbox>"
+macro index,pager \\d0 "<modify-labels-then-hide>+archive +defer:sunday -inbox\n<sync-mailbox>"
+macro index,pager \\d1 "<modify-labels-then-hide>+archive +defer:monday -inbox\n<sync-mailbox>"
+macro index,pager \\dm "<modify-labels-then-hide>+archive +defer:monday -inbox\n<sync-mailbox>"
+macro index,pager \\d2 "<modify-labels-then-hide>+archive +defer:tuesday -inbox\n<sync-mailbox>"
+macro index,pager \\dt "<modify-labels-then-hide>+archive +defer:tuesday -inbox\n<sync-mailbox>"
+macro index,pager \\d3 "<modify-labels-then-hide>+archive +defer:wednesday -inbox\n<sync-mailbox>"
+macro index,pager \\dw "<modify-labels-then-hide>+archive +defer:wednesday -inbox\n<sync-mailbox>"
+macro index,pager \\d4 "<modify-labels-then-hide>+archive +defer:thursday -inbox\n<sync-mailbox>"
+macro index,pager \\dr "<modify-labels-then-hide>+archive +defer:thursday -inbox\n<sync-mailbox>"
+macro index,pager \\d5 "<modify-labels-then-hide>+archive +defer:friday -inbox\n<sync-mailbox>"
+macro index,pager \\df "<modify-labels-then-hide>+archive +defer:friday -inbox\n<sync-mailbox>"
+macro index,pager \\d6 "<modify-labels-then-hide>+archive +defer:saturday -inbox\n<sync-mailbox>"
