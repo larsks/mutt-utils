@@ -1,0 +1,67 @@
+#!/usr/bin/python
+
+import os
+import sys
+import argparse
+import mailbox
+import logging
+
+from email.utils import parsedate
+
+timefields = 'year month day hour min sec wday yday isdst'.split()
+
+
+def parse_args():
+    p = argparse.ArgumentParser()
+    p.add_argument('--folder', '-f')
+    p.add_argument('--name', '-n', default='{year:04}-{month:02}')
+    p.add_argument('--dry-run', action='store_true')
+    p.add_argument('--verbose', '-v',
+                   action='store_const',
+                   dest='loglevel',
+                   const=logging.INFO)
+    p.add_argument('--debug', '-d',
+                   action='store_const',
+                   dest='loglevel',
+                   const=logging.DEBUG)
+    p.add_argument('maildir')
+
+    p.set_defaults(loglevel=logging.WARN)
+
+    return p.parse_args()
+
+
+def main():
+    args = parse_args()
+    logging.basicConfig(level=args.loglevel)
+
+    md = mailbox.Maildir(args.maildir,
+                         factory=None)
+
+    srcfolder = (md.get_folder(args.folder) if args.folder
+                 else md)
+
+    for key, msg in srcfolder.iteritems():
+        when = dict(zip(timefields, parsedate(msg['date'])))
+        dstfolder_name = args.name.format(**when)
+
+        logging.info('moving message %s (%s) to %s',
+                     msg['message-id'],
+                     key,
+                     dstfolder_name)
+
+        try:
+            dstfolder = md.get_folder(dstfolder_name)
+        except mailbox.NoSuchMailboxError:
+            logging.warn('creating new folder %s',
+                         dstfolder_name)
+            dstfolder = md.add_folder(dstfolder_name)
+
+        if not args.dry_run:
+            dstfolder.add(msg)
+            srcfolder.remove(key)
+
+if __name__ == '__main__':
+    main()
+
+
