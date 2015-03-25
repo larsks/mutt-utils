@@ -1,6 +1,6 @@
 #!/bin/sh
 
-ARGS=$(getopt -o l --long later -n handle-deferred -- "$@")
+ARGS=$(getopt -o lm --long later,morning -n handle-deferred -- "$@")
 
 if [ $? -ne 0 ]; then
 	echo "usage: handle-deferred [--later]"
@@ -15,6 +15,10 @@ while :; do
 			deferred_mode=later
 			shift
 			;;
+		-m|--morning)
+			deferred_mode=later
+			shift
+			;;
 		--)	shift
 			break
 			;;
@@ -26,6 +30,8 @@ done
 
 if [ "$deferred_mode" = later ]; then
 	tag="defer:later"
+elif [ "$deferred_mode" = morning ]; then
+	tag="defer:morning"
 else
 	today=$(date +%A | tr '[:upper:]' '[:lower:]')
 	tag="defer:$today"
