@@ -3,7 +3,6 @@
 import os
 import sys
 import subprocess
-import time
 from email.parser import Parser
 from email.utils import parseaddr
 
@@ -26,8 +25,8 @@ for header in ['from', 'to', 'cc']:
             continue
 
         if addr[1].endswith('@redhat.com'):
-            info = subprocess.check_output(['orgchart', '--yaml', 'user', 
-                '--mail={}'.format(addr[1])])
+            info = subprocess.check_output(['orgchart', '--yaml', 'user',
+                                            '--mail={}'.format(addr[1])])
             data = yaml.load(info)
             if data:
                 data[0]['orig_email'] = addr[1]
@@ -53,5 +52,3 @@ for person in people:
             person['group'].get('parent', ''),
         )
     print
-
-
