@@ -1,0 +1,27 @@
+#!/usr/bin/python
+
+import email
+import argparse
+import sys
+
+
+def parse_args():
+    p = argparse.ArgumentParser()
+    p.add_argument('--index', '-i',
+                   default=0,
+                   type=int)
+    p.add_argument('header')
+    return p.parse_args()
+
+
+def main():
+    args = parse_args()
+
+    msg = email.message_from_file(sys.stdin)
+    addr = msg.get_all(args.header)[args.index]
+    msg.replace_header('from', addr)
+
+    sys.stdout.write(str(msg))
+
+if __name__ == '__main__':
+    sys.exit(main())
