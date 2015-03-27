@@ -16,7 +16,7 @@ while :; do
 			shift
 			;;
 		-m|--morning)
-			deferred_mode=later
+			deferred_mode=morning
 			shift
 			;;
 		--)	shift
@@ -28,10 +28,8 @@ while :; do
 	esac
 done
 
-if [ "$deferred_mode" = later ]; then
-	tag="defer:later"
-elif [ "$deferred_mode" = morning ]; then
-	tag="defer:morning"
+if [ "$deferred_mode" ]; then
+	tag="defer:$deferred_mode"
 else
 	today=$(date +%A | tr '[:upper:]' '[:lower:]')
 	tag="defer:$today"
